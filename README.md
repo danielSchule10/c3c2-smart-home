@@ -7,3 +7,4 @@
 
 # Contributors:
 Hakan Büscher
+Fabian Beddies
