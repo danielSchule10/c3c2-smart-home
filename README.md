@@ -9,3 +9,5 @@
 Hakan Büscher
 
 Fabian Beddies
+
+Patrick Schweig, Luca Zickenheiner
