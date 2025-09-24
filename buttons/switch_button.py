@@ -5,6 +5,7 @@ from .button import GenericButtonHandler
 
 class SwitchButton(GenericButtonHandler):
     def trigger(self, pin):
+        # Toggle Output-Zustand
         print(f"triggered switch button on {self.input_pin}")
         print(GPIO.input(self.input_pin))
         print("Input is HIGH")

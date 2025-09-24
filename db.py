@@ -4,19 +4,25 @@ import time as t
 
 from exceptions import DBExistsException, DeviceTypeNotFoundException, DeviceNotFoundException
 
+# Datenbank-Wrapper für Gerätesteuerung (leichtgewichtig)
+# Fokus: Geräte, Typen, Logs, Zustands-Historie
+
 class DBWrapper:
     def __init__(self, db_name):
         self.db_name = db_name
         self.connection = None
         self.cur = None
+        # DB initial noch nicht verbunden
 
     def dict_factory(self, cursor, row):
+        """Zeilen -> Dict (spaltenname: wert)"""
         d = {}
         for idx, col in enumerate(cursor.description):
             d[col[0]] = row[idx]
         return d
 
     def group_by_minute(self, data):
+        """Gruppiert History-Einträge nach Minute"""
         history_by_minute = defaultdict(list)
         for row in data:
             minute = row["minute_group"]
@@ -24,12 +30,14 @@ class DBWrapper:
         return dict(history_by_minute)
 
     def create_db(self):
+        """Stellt Verbindung her (einmalig)"""
         self.connection = sqlite3.connect(self.db_name,check_same_thread=False)
         self.connection.row_factory = self.dict_factory
         self.cur = self.connection.cursor()
         return self.cur
 
     def init_tables(self):
+        """Erzeugt Tabellen falls nicht vorhanden & schreibt Startup-Log"""
         start = t.time()
         self.cur.execute("""
             CREATE TABLE IF NOT EXISTS logs (
@@ -72,6 +80,7 @@ class DBWrapper:
             );
         """)
 
+        # Standard-Gerätetypen (id fix): 1=output, 2=input, 3=virt
         self.cur.executemany("""
             INSERT OR IGNORE INTO device_type (id, device_type) VALUES (?, ?);
         """, [(1, 'output'), (2, 'input'), (3, 'virtual_input')])
@@ -83,10 +92,12 @@ class DBWrapper:
         self.connection.commit()
 
     def init_db(self):
+        """Convenience: erstellt Verbindung"""
         self.create_db()
         return self.cur
 
     def write_log(self, msg_type: str, code: str, message: str, device_id=None):
+        """Schreibt Logeintrag"""
         self.cur.execute("""
             INSERT INTO logs (type, code, message, deviceID)
             VALUES (?, ?, ?, ?);
@@ -94,6 +105,7 @@ class DBWrapper:
         self.connection.commit()
 
     def add_device(self, device_name: str, pin: int, device_type: int, secondary_pin=None, room_id = 0):
+        """Neues Gerät hinzufügen (Pin eindeutig). Rückgabe True/False"""
         device_type_obj = self.cur.execute("""
             SELECT id FROM device_type WHERE id = ?;
         """, (device_type,)).fetchone()
@@ -118,6 +130,7 @@ class DBWrapper:
         return True
 
     def remove_device(self, pin):
+        """Entfernt Gerät anhand Pin oder wirft Ausnahme"""
         pin_is_in_use = self.cur.execute("""
             SELECT pin FROM device WHERE pin = ?;
         """, (pin,)).fetchone()
@@ -131,6 +144,7 @@ class DBWrapper:
             raise DeviceNotFoundException(f"Device with pin {pin} not found")
 
     def get_device(self, pin):
+        """Gerät via Pin holen (oder None)"""
         device = self.cur.execute("""
         SELECT * FROM device WHERE pin = ?;
         """, (pin,)).fetchone()
@@ -138,12 +152,14 @@ class DBWrapper:
         return device
     
     def get_all_devices(self):
+        """Alle Geräte (Liste)"""
         all_devices = self.cur.execute("""
         SELECT * FROM device ORDER BY roomID DESC;
         """).fetchall()
         return all_devices
     
     def get_all_devices_for_room(self,room_id: int):
+        """Geräte in Raum"""
         all_devices_for_room = self.cur.execute("""
         SELECT * FROM device WHERE roomID = ?;
         """, (room_id,)).fetchall()
@@ -151,6 +167,7 @@ class DBWrapper:
         return all_devices_for_room
     
     def get_all_devices_grouped_by_room(self):
+        """Geräte gruppiert nach Raum -> Dict"""
         all_devices = self.cur.execute("""
         SELECT * FROM device ORDER BY roomID DESC;
         """).fetchall()
@@ -167,6 +184,7 @@ class DBWrapper:
 
 
     def update_device_state_by_pin(self, pin: int, state: int):
+        """Speichert aktuellen Zustand (state)"""
         update = self.cur.execute("""
         UPDATE device SET state = ? WHERE pin = ?;
         """, (state,pin, ))
@@ -174,12 +192,14 @@ class DBWrapper:
         self.connection.commit()
 
     def get_number_of_rooms(self):
+        """Liste distinct roomIDs"""
         result = self.cur.execute("""
         SELECT DISTINCT roomID FROM device;
         """).fetchall()
         return result
     
     def create_record(self, deviceID, state):
+        """Historieneintrag anlegen"""
         self.cur.execute("""
             INSERT INTO history (deviceID, state) VALUES (?, ?)
         """, (deviceID, state, ))
@@ -188,11 +208,13 @@ class DBWrapper:
         return True
     
     def get_num_state_updates(self):
+        """Anzahl Zustandsänderungen (COUNT)"""
         num_updates = self.cur.execute("""
             SELECT COUNT(deviceID) FROM history;
         """)
         return num_updates
     def get_history(self):
+        """History gruppiert nach Minute"""
         history_entries = self.cur.execute("""
             SELECT 
                 strftime('%Y-%m-%d %H:%M', history.timestamp) AS minute_group,
@@ -213,12 +235,14 @@ class DBWrapper:
         return grouped_data
 
     def get_all_buttons(self):
+        """Alle Button-Geräte (device_type_id=2)"""
         return  self.cur.execute("""
             SELECT * FROM device WHERE device_type_id=2;
         """).fetchall()
         
 
     def close(self):
+        """DB-Verbindung schließen"""
         if self.connection:
             self.connection.close()
 
