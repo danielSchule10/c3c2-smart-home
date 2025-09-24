@@ -1,10 +1,9 @@
 import RPi.GPIO as GPIO
 
+# Generische Button-Basis (Ereignis -> trigger())
+
 class GenericButtonHandler:
-    """
-    A base class for handling button presses on a Raspberry Pi. 
-    Subclasses can override or extend functionality
-    """
+    """Basis-Klasse für Button-Logik (GPIO Event)"""
     def __init__(
         self, 
         input_pin, 
@@ -17,23 +16,19 @@ class GenericButtonHandler:
         self.event = event
         self.bouncetime = bouncetime
 
-        # Pin setup
+    # Pin Setup (Input mit Pull-Down + Output LOW)
         GPIO.setmode(GPIO.BCM)
         GPIO.cleanup(input_pin)
         GPIO.setup(self.input_pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
         GPIO.setup(self.output_pin, GPIO.OUT, initial=GPIO.LOW)
 
-        # Setup default event detection
+    # Standard Event Registrierung
         self.setup_event_detection()
 
         print("Button instantiated")
 
     def setup_event_detection(self):
-        """
-        Set up the GPIO event detection. 
-        Subclasses can override this if they need different behavior
-        (e.g., GPIO.BOTH instead of GPIO.RISING).
-        """
+        """Richtet Event-Erkennung ein (überschreibbar)"""
         GPIO.add_event_detect(
             self.input_pin,
             self.event,
@@ -42,8 +37,5 @@ class GenericButtonHandler:
         )
 
     def trigger(self, pin):
-        """
-        The action that the button should perform upon triggering.
-        Overwrite this in subclasses to implement custom functionality.
-        """
+        """Wird von konkreter Button-Klasse implementiert"""
         pass

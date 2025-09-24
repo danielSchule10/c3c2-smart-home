@@ -1,6 +1,8 @@
 import RPi.GPIO as GPIO
 from .button import GenericButtonHandler 
 
+# Momentan-Taster: aktiviert Output bei Event
+
 class PressButton(GenericButtonHandler):
     def __init__(self, input_pin, output_pin, bouncetime=200):
         # We want to catch both RISING and FALLING so we can 
@@ -13,7 +15,6 @@ class PressButton(GenericButtonHandler):
         )
 
     def trigger(self, pin):
-        # If the input is HIGH, set output HIGH
-        # Otherwise, set output LOW
+        # Einfach: immer HIGH setzen (kurzer Impuls)
         print(f"triggered push button on {self.input_pin}")
         GPIO.output(self.output_pin, GPIO.HIGH)
